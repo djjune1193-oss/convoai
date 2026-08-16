@@ -1,0 +1,25 @@
+# Install: sudo cp deploy/convoai-backend.service /etc/systemd/system/
+# First, replace YOUR_USER below with whatever account you SSH into the
+# droplet as (run `whoami` on the server to check) — no dedicated deploy
+# user needed, this just runs as you.
+# Then:    sudo systemctl daemon-reload && sudo systemctl enable --now convoai-backend
+
+[Unit]
+Description=ConvoAI FastAPI backend
+After=network.target
+
+[Service]
+User=YOUR_USER
+Group=YOUR_USER
+WorkingDirectory=/var/www/convoai/backend
+ExecStart=/var/www/convoai/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+
+# Backend binds to 127.0.0.1 only — Nginx is the sole public entry point.
+# Settings.Config.env_file=".env" makes the app load backend/.env itself
+# (via python-dotenv) as long as WorkingDirectory is set correctly above,
+# so no separate EnvironmentFile= directive is needed here.
+
+[Install]
+WantedBy=multi-user.target
