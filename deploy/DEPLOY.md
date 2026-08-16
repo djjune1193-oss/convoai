@@ -84,20 +84,23 @@ EOF
 
 ## 4. Clone the repo onto the server
 
+Since this is a public repo, no deploy key or auth needed — just clone
+straight into your home directory. No `sudo`, no `chown` — it's already
+yours:
+
 ```bash
-sudo mkdir -p /var/www/convoai
-sudo chown YOUR_USER:YOUR_USER /var/www/convoai
-git clone git@github.com:YOUR_GITHUB_REPO.git /var/www/convoai
+git clone https://github.com/djjune1193-oss/convoai.git /home/YOUR_USER/convoai
 ```
-(Use the `https://github.com/...` URL instead if the repo is public and
-you skipped step 3.)
+(Replace `YOUR_USER` with your actual username — check with `whoami` — or
+just run `git clone https://github.com/djjune1193-oss/convoai.git ~/convoai`,
+which does the same thing.)
 
 ---
 
 ## 5. Add your real API keys (one-time, manual)
 
 ```bash
-cd /var/www/convoai/backend
+cd /home/YOUR_USER/convoai/backend
 cp .env.example .env
 nano .env
 ```
@@ -120,7 +123,7 @@ only do this once (or again if a key changes).
 ## 6. First deploy
 
 ```bash
-cd /var/www/convoai
+cd /home/YOUR_USER/convoai
 chmod +x deploy/deploy.sh
 ./deploy/deploy.sh
 ```
@@ -134,7 +137,7 @@ continue to step 7.
 ## 7. Install the systemd service
 
 ```bash
-sudo cp /var/www/convoai/deploy/convoai-backend.service /etc/systemd/system/
+sudo cp /home/YOUR_USER/convoai/deploy/convoai-backend.service /etc/systemd/system/
 sudo nano /etc/systemd/system/convoai-backend.service   # replace YOUR_USER (both User= and Group=)
 sudo systemctl daemon-reload
 sudo systemctl enable --now convoai-backend
@@ -146,7 +149,7 @@ sudo systemctl status convoai-backend    # should show "active (running)"
 ## 8. Install the Nginx config
 
 ```bash
-sudo cp /var/www/convoai/deploy/nginx-convoai.conf /etc/nginx/sites-available/convoai
+sudo cp /home/YOUR_USER/convoai/deploy/nginx-convoai.conf /etc/nginx/sites-available/convoai
 sudo nano /etc/nginx/sites-available/convoai   # replace YOUR_DOMAIN with your real domain
 sudo ln -s /etc/nginx/sites-available/convoai /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default     # remove the default placeholder site
@@ -188,12 +191,12 @@ git push origin main
 Then either SSH in and run the script:
 ```bash
 ssh YOUR_USER@YOUR_DROPLET_IP
-cd /var/www/convoai && ./deploy/deploy.sh
+cd /home/YOUR_USER/convoai && ./deploy/deploy.sh
 ```
 or do it as a single line from your own machine without a separate login
 step:
 ```bash
-ssh YOUR_USER@YOUR_DROPLET_IP 'cd /var/www/convoai && ./deploy/deploy.sh'
+ssh YOUR_USER@YOUR_DROPLET_IP 'cd /home/YOUR_USER/convoai && ./deploy/deploy.sh'
 ```
 
 **Optional convenience:** `deploy.sh` calls `sudo systemctl restart
@@ -226,7 +229,7 @@ that built.
   the private key.
 - **Backend won't start** — `sudo journalctl -u convoai-backend -n 50` for
   the actual Python traceback. Common cause: `.env` missing a required key,
-  or the venv wasn't created (check `/var/www/convoai/backend/venv` exists).
+  or the venv wasn't created (check `/home/YOUR_USER/convoai/backend/venv` exists).
 - **502 Bad Gateway** — Nginx is up but can't reach the backend. Check
   `sudo systemctl status convoai-backend`; if it's not running, see above.
 - **CORS errors in browser console** — `ALLOWED_ORIGINS` in `.env` doesn't
@@ -239,12 +242,20 @@ that built.
   browser console for the actual WS URL it tried. It should be
   `wss://YOUR_DOMAIN/ws/...`. If it's `ws://` (not `wss://`) on an HTTPS
   page, that's a mixed-content block — confirms HTTPS isn't fully set up.
-- **Photo uploads 404** — confirm `/var/www/convoai/backend/uploads/`
+- **Photo uploads 404** — confirm `/home/YOUR_USER/convoai/backend/uploads/`
   exists and is writable by whatever user the `convoai-backend` service
   runs as (it's created automatically on backend startup, so this usually
   means the service crashed before creating it — check the logs).
 - **`./deploy/deploy.sh: Permission denied`** — `chmod +x deploy/deploy.sh`
   (git doesn't always preserve the executable bit across platforms).
+- **Nginx serves a 403 error for the frontend (but the API works fine)**
+  — since the app now lives in your home directory instead of `/var/www`,
+  Nginx (running as `www-data`) may not have permission to traverse into
+  it, depending on your server's default permissions. Fix:
+  ```bash
+  chmod o+x /home/YOUR_USER
+  chmod -R o+rX /home/YOUR_USER/convoai/frontend/dist
+  ```
 
 ## What's still manual / not automated here
 

@@ -11,8 +11,8 @@ After=network.target
 [Service]
 User=YOUR_USER
 Group=YOUR_USER
-WorkingDirectory=/var/www/convoai/backend
-ExecStart=/var/www/convoai/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+WorkingDirectory=/home/YOUR_USER/convoai/backend
+ExecStart=/home/YOUR_USER/convoai/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=3
 
