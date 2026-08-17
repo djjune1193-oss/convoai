@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import uuid
 
 from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
@@ -13,6 +14,20 @@ from .claude_service import AI_DISPLAY_NAME, find_nearby_places, get_ai_reply, g
 from .config import settings
 from .database import Base, engine, get_db
 from .websocket_manager import manager
+
+
+def _interest_tokens(user: "models.User") -> set:
+    """Lowercased word tokens from a user's hobbies/sports/work fields, used
+    to rank Discover results by shared-interest overlap with the viewer."""
+    words: set = set()
+    for text in (user.hobbies, user.sports, user.work):
+        if not text:
+            continue
+        for w in re.split(r"[,\s]+", text.lower()):
+            w = w.strip()
+            if len(w) > 1:
+                words.add(w)
+    return words
 
 
 def _friendly_gemini_error(exc: Exception) -> str:
@@ -130,6 +145,46 @@ def search_users(keyword: str, exclude_user_id: str = None, db: Session = Depend
     if exclude_user_id:
         query = query.filter(models.User.id != exclude_user_id)
     return query.limit(30).all()
+
+
+# Same routing-order caution as /users/search above — must stay registered
+# before /users/{user_id}.
+@router.get("/users/discover", response_model=list[schemas.UserSearchResult])
+def discover_users(
+    user_id: str,
+    keyword: str = None,
+    offset: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    """
+    Browse other ConvoAI users, ranked by shared interests with the viewer
+    first (overlap between hobbies/sports/work token sets). If `keyword` is
+    given, filters to hobby/sport matches first (same logic as
+    /users/search) and then applies the same interest-overlap ranking
+    within those results.
+    """
+    limit = max(1, min(limit, 50))
+
+    viewer = db.query(models.User).get(user_id)
+    viewer_tokens = _interest_tokens(viewer) if viewer else set()
+
+    query = db.query(models.User).filter(models.User.id != user_id)
+    kw = (keyword or "").strip()
+    if kw:
+        pattern = f"%{kw}%"
+        query = query.filter(
+            models.User.hobbies.ilike(pattern) | models.User.sports.ilike(pattern)
+        )
+
+    candidates = query.all()
+    candidates.sort(
+        key=lambda u: (
+            -len(viewer_tokens & _interest_tokens(u)),
+            -(u.created_at.timestamp() if u.created_at else 0),
+        )
+    )
+    return candidates[offset:offset + limit]
 
 
 @router.get("/users/{user_id}", response_model=schemas.UserOut)

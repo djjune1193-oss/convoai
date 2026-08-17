@@ -89,8 +89,11 @@ Leave this running too — it'll print a local URL, usually
 3. **Bob:** same thing in the other window, his own User ID/password.
 4. **Alice:** on the home screen, tap **👤➕ Invite**, enter Bob's ConvoAI
    ID, **Send invite**. (The **👥 Group** button does the same thing for
-   multiple people at once; **🔍 Search** finds people by hobby/sport
-   keyword instead of by ID.)
+   multiple people at once; **🔍 Search** opens a full **Discover** page —
+   a scrollable photo-tile grid of everyone on ConvoAI, ranked by shared
+   hobbies/sports/work with you by default, with its own search box to
+   filter by keyword instead. **Connect** on any tile sends the same kind
+   of invite as the 👤➕ button.)
 5. **Bob:** tap the **🔔** button (it'll show a badge), see Alice's invite
    under "For you," tap **Accept**. This drops Bob straight into the new
    chat.
@@ -203,9 +206,11 @@ responsive from phone to desktop. Deliberately not yet built:
 - **Account recovery** — no "forgot password" flow; losing your password
   means losing access to that account (there's no email on file to reset
   via).
-- **Search result filtering** — 🔍 people search matches on hobbies/sports
-  substrings but doesn't yet exclude people you're already connected to,
-  or support multi-keyword/AND queries.
+- **Discover page ranking is keyword-overlap only** — 🔍 now opens a full
+  "Discover" page (photo tiles, scrollable, "Load more") instead of a
+  small modal. Default order ranks by shared hobby/sport/work word overlap
+  with your own profile; there's no weighting by recency of activity,
+  mutual connections, or anything beyond simple word matching yet.
 - **Persistence of "who can see AI replies / poll results"** — right now
   everything is visible to every participant.
 - **Precise place data** — nearby-places uses Gemini's Maps grounding,

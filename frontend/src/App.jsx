@@ -6,11 +6,11 @@ import ChatWindow from './components/ChatWindow.jsx'
 import SendInviteModal from './components/SendInviteModal.jsx'
 import InvitesPanel from './components/InvitesPanel.jsx'
 import GroupChatModal from './components/GroupChatModal.jsx'
-import SearchPeopleModal from './components/SearchPeopleModal.jsx'
+import DiscoverScreen from './components/DiscoverScreen.jsx'
 import { clearToken, fetchMe, getToken, login, setToken, signup } from './api.js'
 
 export default function App() {
-  // 'checking' | 'welcome' | 'profile-setup' | 'home' | 'profile-edit' | 'chat'
+  // 'checking' | 'welcome' | 'profile-setup' | 'home' | 'profile-edit' | 'chat' | 'discover'
   const [view, setView] = useState('checking')
   const [user, setUser] = useState(null)
   const [conversationId, setConversationId] = useState(null)
@@ -20,7 +20,6 @@ export default function App() {
   const [showSendInvite, setShowSendInvite] = useState(false)
   const [showInvites, setShowInvites] = useState(false)
   const [showGroupChat, setShowGroupChat] = useState(false)
-  const [showSearch, setShowSearch] = useState(false)
 
   // On load: if a session token is already stored, try to restore it
   // instead of showing the welcome screen — this is what makes "log in
@@ -150,7 +149,7 @@ export default function App() {
           onOpenInvites={() => setShowInvites(true)}
           onOpenSendInvite={() => setShowSendInvite(true)}
           onOpenGroupChat={() => setShowGroupChat(true)}
-          onOpenSearch={() => setShowSearch(true)}
+          onOpenSearch={() => setView('discover')}
         />
         {showSendInvite && (
           <SendInviteModal currentUser={user} onClose={() => setShowSendInvite(false)} />
@@ -169,11 +168,12 @@ export default function App() {
             onCreated={handleGroupCreated}
           />
         )}
-        {showSearch && (
-          <SearchPeopleModal currentUser={user} onClose={() => setShowSearch(false)} />
-        )}
       </>
     )
+  }
+
+  if (view === 'discover') {
+    return <DiscoverScreen currentUser={user} onBack={() => setView('home')} />
   }
 
   return (

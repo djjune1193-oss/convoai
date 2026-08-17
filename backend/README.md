@@ -66,7 +66,12 @@ error rather than appear.
 - `POST /users/{id}/avatar` — multipart file upload for a profile photo;
   serves back a URL under `/uploads/avatars/...`
 - `GET /users/search?keyword=...&exclude_user_id=...` — matches on
-  `hobbies`/`sports` substrings, for the 🔍 people-search feature
+  `hobbies`/`sports` substrings
+- `GET /users/discover?user_id=...&keyword=...&offset=...&limit=...` —
+  powers the 🔍 Discover page: every other user, ranked by shared
+  hobby/sport/work word overlap with the viewer first (or by keyword match
+  + same ranking if `keyword` is given); paginated via `offset`/`limit`
+  (default 20, capped at 50)
 - `POST /invites` — `{from_user_id, to_convoai_id}` — send a 1:1 invite by
   the recipient's ConvoAI ID; fails if that ID doesn't exist, is your own,
   or you already have a pending/accepted invite with them
@@ -105,6 +110,16 @@ error rather than appear.
   On `swipe_ai`, the server fetches recent history, calls Gemini, and
   broadcasts the reply back down the same socket as a normal message with
   `sender_type: "ai"`.
+
+**Gotcha to remember when adding new `/users/...` routes:** FastAPI matches
+routes in registration order, and `/users/{user_id}` is a wildcard that
+matches *any* literal path segment — including words like `search` or
+`discover`. Any new literal route under `/users/` (e.g. `/users/something`)
+must be registered **above** `/users/{user_id}` in `main.py`, or requests
+to it silently get swallowed by `get_user()` and return a confusing
+"User not found" instead of actually running. This has already caused one
+real bug (`/users/search`) — both `/users/search` and `/users/discover`
+are commented in the code explaining why their position matters.
 
 ## Identity & auth model
 
