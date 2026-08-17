@@ -619,6 +619,7 @@ input { font-family: var(--font-body); }
 .discover-tile-body { padding: 10px; display: flex; flex-direction: column; gap: 3px; }
 .discover-tile-name { font-weight: 700; font-size: 13.5px; }
 .discover-tile-status { font-style: italic; font-size: 11.5px; color: var(--ink-soft); }
+.discover-tile-distance { font-size: 10.5px; color: var(--sky-deep); font-weight: 600; }
 .discover-tile-line {
   font-size: 11px; color: var(--ink); line-height: 1.35;
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box;

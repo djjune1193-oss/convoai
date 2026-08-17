@@ -2,6 +2,7 @@ import json
 import os
 import re
 import uuid
+from math import atan2, cos, radians, sin, sqrt
 
 from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,16 @@ from .claude_service import AI_DISPLAY_NAME, find_nearby_places, get_ai_reply, g
 from .config import settings
 from .database import Base, engine, get_db
 from .websocket_manager import manager
+
+
+def _distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance between two points, in kilometers."""
+    R = 6371.0
+    phi1, phi2 = radians(lat1), radians(lat2)
+    dphi = radians(lat2 - lat1)
+    dlambda = radians(lng2 - lng1)
+    a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dlambda / 2) ** 2
+    return 2 * R * atan2(sqrt(a), sqrt(1 - a))
 
 
 def _interest_tokens(user: "models.User") -> set:
@@ -159,15 +170,17 @@ def discover_users(
 ):
     """
     Browse other ConvoAI users, ranked by shared interests with the viewer
-    first (overlap between hobbies/sports/work token sets). If `keyword` is
-    given, filters to hobby/sport matches first (same logic as
-    /users/search) and then applies the same interest-overlap ranking
-    within those results.
+    first (overlap between hobbies/sports/work token sets), with distance
+    from the viewer as a tiebreaker when both have shared their location.
+    If `keyword` is given, filters to hobby/sport matches first (same logic
+    as /users/search) and then applies the same ranking within those
+    results.
     """
     limit = max(1, min(limit, 50))
 
     viewer = db.query(models.User).get(user_id)
     viewer_tokens = _interest_tokens(viewer) if viewer else set()
+    viewer_has_location = bool(viewer and viewer.latitude is not None and viewer.longitude is not None)
 
     query = db.query(models.User).filter(models.User.id != user_id)
     kw = (keyword or "").strip()
@@ -178,13 +191,36 @@ def discover_users(
         )
 
     candidates = query.all()
+
+    # Attach a transient (non-persisted) distance_km attribute to each ORM
+    # object — UserSearchResult picks it up via from_attributes, and raw
+    # coordinates never leave the server.
+    for u in candidates:
+        if viewer_has_location and u.latitude is not None and u.longitude is not None:
+            u.distance_km = round(_distance_km(viewer.latitude, viewer.longitude, u.latitude, u.longitude), 1)
+        else:
+            u.distance_km = None
+
     candidates.sort(
         key=lambda u: (
             -len(viewer_tokens & _interest_tokens(u)),
+            u.distance_km if u.distance_km is not None else float("inf"),
             -(u.created_at.timestamp() if u.created_at else 0),
         )
     )
     return candidates[offset:offset + limit]
+
+
+@router.post("/users/{user_id}/location", response_model=schemas.UserOut)
+def update_location(user_id: str, payload: schemas.LocationUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.latitude = payload.latitude
+    user.longitude = payload.longitude
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.get("/users/{user_id}", response_model=schemas.UserOut)

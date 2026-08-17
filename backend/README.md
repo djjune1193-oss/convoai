@@ -69,9 +69,16 @@ error rather than appear.
   `hobbies`/`sports` substrings
 - `GET /users/discover?user_id=...&keyword=...&offset=...&limit=...` —
   powers the 🔍 Discover page: every other user, ranked by shared
-  hobby/sport/work word overlap with the viewer first (or by keyword match
-  + same ranking if `keyword` is given); paginated via `offset`/`limit`
-  (default 20, capped at 50)
+  hobby/sport/work word overlap with the viewer first, then by distance
+  (closest first, if both viewer and candidate have shared a location) as
+  a tiebreaker — or by keyword match + same ranking if `keyword` is given.
+  Paginated via `offset`/`limit` (default 20, capped at 50). Response
+  includes a computed `distance_km` per person; raw coordinates of other
+  users are never sent to the client.
+- `POST /users/{id}/location` — `{latitude, longitude}` — stores the
+  user's location, captured via the browser Geolocation API after the
+  custom `LocationPromptScreen` (shown post-login, only if the account
+  hasn't already shared one)
 - `POST /invites` — `{from_user_id, to_convoai_id}` — send a 1:1 invite by
   the recipient's ConvoAI ID; fails if that ID doesn't exist, is your own,
   or you already have a pending/accepted invite with them
@@ -200,6 +207,15 @@ just a system prompt plus the recent conversation history. Same
 
 ## Known shortcuts (fine for a prototype, fix before shipping)
 
+- `POST /users/{id}/location` trusts whatever `user_id` is in the URL —
+  same client-trust pattern as the rest of the API (see the auth scope
+  note above). Nothing stops a request from setting location on an
+  account that isn't the caller's.
+- Location is stored as a single point with no staleness tracking — it's
+  never refreshed unless the user explicitly re-triggers the browser
+  permission somehow (no UI for that exists yet beyond the one-time
+  post-login prompt), so "distance" can silently go stale for someone who
+  travels after granting it once.
 - No auth — `sender_id` is trusted from the client. Add JWT/session auth
   before this touches real users.
 - `get_ai_reply` is a blocking call inside the WebSocket handler. Fine at

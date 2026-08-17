@@ -7,10 +7,11 @@ import SendInviteModal from './components/SendInviteModal.jsx'
 import InvitesPanel from './components/InvitesPanel.jsx'
 import GroupChatModal from './components/GroupChatModal.jsx'
 import DiscoverScreen from './components/DiscoverScreen.jsx'
+import LocationPromptScreen from './components/LocationPromptScreen.jsx'
 import { clearToken, fetchMe, getToken, login, setToken, signup } from './api.js'
 
 export default function App() {
-  // 'checking' | 'welcome' | 'profile-setup' | 'home' | 'profile-edit' | 'chat' | 'discover'
+  // 'checking' | 'welcome' | 'profile-setup' | 'location-prompt' | 'home' | 'profile-edit' | 'chat' | 'discover'
   const [view, setView] = useState('checking')
   const [user, setUser] = useState(null)
   const [conversationId, setConversationId] = useState(null)
@@ -41,6 +42,19 @@ export default function App() {
       })
   }, [])
 
+  function goHomeOrPromptLocation(u) {
+    // Only ask if this account hasn't already shared a location — avoids
+    // re-nagging a returning user every login once they've decided once
+    // (whether they granted it or explicitly skipped, latitude stays null
+    // only in the "skipped" case, so skipping does mean being asked again
+    // next login — that's an acceptable, low-friction tradeoff here).
+    if (u.latitude == null || u.longitude == null) {
+      setView('location-prompt')
+    } else {
+      setView('home')
+    }
+  }
+
   async function handleSignup(username, password, displayName) {
     setWelcomeError(null)
     setAuthLoading(true)
@@ -63,7 +77,7 @@ export default function App() {
       const { token, user: u } = await login(username, password)
       setToken(token)
       setUser(u)
-      setView('home') // returning account — skip straight to the chat list
+      goHomeOrPromptLocation(u)
     } catch (err) {
       setWelcomeError(err.message)
     } finally {
@@ -80,6 +94,11 @@ export default function App() {
 
   function handleProfileSaved(updatedUser) {
     setUser(updatedUser)
+    goHomeOrPromptLocation(updatedUser)
+  }
+
+  function handleLocationPromptDone(updatedUser) {
+    if (updatedUser) setUser(updatedUser)
     setView('home')
   }
 
@@ -137,6 +156,10 @@ export default function App() {
         onLogout={view === 'profile-edit' ? handleLogout : undefined}
       />
     )
+  }
+
+  if (view === 'location-prompt') {
+    return <LocationPromptScreen user={user} onDone={handleLocationPromptDone} />
   }
 
   if (view === 'home') {

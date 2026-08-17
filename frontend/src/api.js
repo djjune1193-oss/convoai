@@ -122,6 +122,16 @@ export async function searchPeople(keyword, excludeUserId) {
   return res.json()
 }
 
+export async function updateLocation(userId, latitude, longitude) {
+  const res = await fetch(`${API_BASE}/users/${userId}/location`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude, longitude }),
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Could not save location')
+  return res.json()
+}
+
 export async function fetchDiscover(userId, keyword, offset, limit) {
   const params = new URLSearchParams({ user_id: userId, offset, limit })
   if (keyword) params.set('keyword', keyword)

@@ -28,9 +28,16 @@ class UserOut(BaseModel):
     work: Optional[str] = None
     sports: Optional[str] = None
     hobbies: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     class Config:
         from_attributes = True
+
+
+class LocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
 
 
 class UserBrief(BaseModel):
@@ -123,6 +130,7 @@ class UserSearchResult(BaseModel):
     work: Optional[str] = None
     sports: Optional[str] = None
     hobbies: Optional[str] = None
+    distance_km: Optional[float] = None  # computed server-side; raw coordinates never sent to other users
 
     class Config:
         from_attributes = True

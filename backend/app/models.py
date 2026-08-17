@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -35,6 +35,8 @@ class User(Base):
     work = Column(String, nullable=True)
     sports = Column(String, nullable=True)
     hobbies = Column(String, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

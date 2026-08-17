@@ -97,6 +97,9 @@ export default function DiscoverScreen({ currentUser, onBack }) {
               </div>
               <div className="discover-tile-body">
                 <div className="discover-tile-name">{p.display_name}</div>
+                {p.distance_km != null && (
+                  <div className="discover-tile-distance">📍 {p.distance_km} km away</div>
+                )}
                 {p.status && <div className="discover-tile-status">"{p.status}"</div>}
                 {p.work && (
                   <div className="discover-tile-line"><span>Work</span> {p.work}</div>
