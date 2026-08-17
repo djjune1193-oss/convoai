@@ -60,7 +60,7 @@ export default function DiscoverScreen({ currentUser, onBack }) {
     <div className="discover-screen">
       <div className="chat-header">
         <button className="chat-back" onClick={onBack}>←</button>
-        <div className="chat-header-title">Discover people</div>
+        <div className="chat-header-title">Connect with people</div>
       </div>
 
       <div className="discover-search-bar">

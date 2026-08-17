@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { fetchInvites, fetchUserConversations } from '../api.js'
+import { fetchDiscover, fetchInvites, fetchUserConversations, sendInvite } from '../api.js'
+
+const SUGGESTED_COUNT = 6
 
 function initials(name) {
   return (name || '?').trim().slice(0, 2).toUpperCase()
@@ -25,6 +27,8 @@ export default function HomeScreen({
 }) {
   const [conversations, setConversations] = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
+  const [suggested, setSuggested] = useState(null)
+  const [connectedIds, setConnectedIds] = useState([])
 
   function refreshInvites() {
     fetchInvites(user.id).then((invites) => {
@@ -35,7 +39,26 @@ export default function HomeScreen({
   useEffect(() => {
     fetchUserConversations(user.id).then(setConversations)
     refreshInvites()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id])
+
+  // Once we know the chat list is empty, pull in a few suggested people so
+  // there's something to act on instead of a dead end.
+  useEffect(() => {
+    if (conversations !== null && conversations.length === 0) {
+      fetchDiscover(user.id, '', 0, SUGGESTED_COUNT).then(setSuggested)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations])
+
+  async function connect(person) {
+    try {
+      await sendInvite(user.id, person.username)
+      setConnectedIds((prev) => [...prev, person.id])
+    } catch (err) {
+      alert(err.message)
+    }
+  }
 
   return (
     <div className="home-screen">
@@ -66,7 +89,7 @@ export default function HomeScreen({
           </button>
           <button className="home-action" onClick={onOpenSearch}>
             <span className="home-action-icon">🔍</span>
-            <span className="home-action-label">Search</span>
+            <span className="home-action-label">Connect with people</span>
           </button>
         </div>
       </div>
@@ -75,10 +98,58 @@ export default function HomeScreen({
         {conversations === null && <div className="chat-list-empty">Loading your chats…</div>}
 
         {conversations && conversations.length === 0 && (
-          <div className="chat-list-empty">
-            No chats yet — invite someone, start a group, or search for
-            people who share your interests.
-          </div>
+          <>
+            <div className="chat-list-empty">
+              No chats yet — connect with someone below, or invite/search
+              for people who share your interests.
+            </div>
+
+            {suggested === null && (
+              <p className="discover-hint home-suggested-loading">Finding people you might like…</p>
+            )}
+
+            {suggested && suggested.length > 0 && (
+              <div className="home-suggested-section">
+                <div className="home-suggested-heading">People to connect with</div>
+                <div className="discover-grid home-suggested-grid">
+                  {suggested.map((p) => {
+                    const connected = connectedIds.includes(p.id)
+                    return (
+                      <div className="discover-tile" key={p.id}>
+                        <div className="discover-tile-photo">
+                          {p.avatar_url ? (
+                            <img src={p.avatar_url} alt="" />
+                          ) : (
+                            <span>{initials(p.display_name)}</span>
+                          )}
+                        </div>
+                        <div className="discover-tile-body">
+                          <div className="discover-tile-name">{p.display_name}</div>
+                          {p.status && <div className="discover-tile-status">"{p.status}"</div>}
+                          {p.sports && (
+                            <div className="discover-tile-line"><span>Sports</span> {p.sports}</div>
+                          )}
+                          {p.hobbies && (
+                            <div className="discover-tile-line"><span>Hobbies</span> {p.hobbies}</div>
+                          )}
+                          <button
+                            className="invite-accept discover-connect"
+                            disabled={connected}
+                            onClick={() => connect(p)}
+                          >
+                            {connected ? 'Invited' : 'Connect'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <button className="home-suggested-more" onClick={onOpenSearch}>
+                  See more people →
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {conversations && conversations.map((c, i) => (
