@@ -67,12 +67,16 @@ class Invite(Base):
     id = Column(String, primary_key=True, default=gen_uuid)
     from_user_id = Column(String, ForeignKey("users.id"), nullable=False)
     to_user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    # If set, accepting this invite adds the user to this existing (group)
+    # conversation instead of creating a new 1:1 one. Null = normal 1:1 invite.
+    conversation_id = Column(String, ForeignKey("conversations.id"), nullable=True)
     status = Column(Enum(InviteStatus), default=InviteStatus.pending, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     responded_at = Column(DateTime, nullable=True)
 
     from_user = relationship("User", foreign_keys=[from_user_id])
     to_user = relationship("User", foreign_keys=[to_user_id])
+    conversation = relationship("Conversation")
 
 
 class Message(Base):

@@ -14,7 +14,15 @@ function formatTime(iso) {
     : d.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-export default function HomeScreen({ user, onOpenConversation, onNewChat, onOpenProfile, onOpenInvites }) {
+export default function HomeScreen({
+  user,
+  onOpenConversation,
+  onOpenProfile,
+  onOpenInvites,
+  onOpenSendInvite,
+  onOpenGroupChat,
+  onOpenSearch,
+}) {
   const [conversations, setConversations] = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
 
@@ -42,8 +50,23 @@ export default function HomeScreen({ user, onOpenConversation, onNewChat, onOpen
               <div className="home-subtitle">{user.display_name} · {user.username}</div>
             </div>
           </div>
-          <button className="home-invites-button" onClick={() => { onOpenInvites(); }}>
+          <button className="home-invites-button" onClick={onOpenInvites}>
             🔔{pendingCount > 0 && <span className="invite-badge">{pendingCount}</span>}
+          </button>
+        </div>
+
+        <div className="home-actions">
+          <button className="home-action" onClick={onOpenSendInvite}>
+            <span className="home-action-icon">👤➕</span>
+            <span className="home-action-label">Invite</span>
+          </button>
+          <button className="home-action" onClick={onOpenGroupChat}>
+            <span className="home-action-icon">👥</span>
+            <span className="home-action-label">Group</span>
+          </button>
+          <button className="home-action" onClick={onOpenSearch}>
+            <span className="home-action-icon">🔍</span>
+            <span className="home-action-label">Search</span>
           </button>
         </div>
       </div>
@@ -53,7 +76,8 @@ export default function HomeScreen({ user, onOpenConversation, onNewChat, onOpen
 
         {conversations && conversations.length === 0 && (
           <div className="chat-list-empty">
-            No chats yet. Invite someone using their ConvoAI ID to get started.
+            No chats yet — invite someone, start a group, or search for
+            people who share your interests.
           </div>
         )}
 
@@ -63,15 +87,13 @@ export default function HomeScreen({ user, onOpenConversation, onNewChat, onOpen
               {initials(c.title)}
             </div>
             <div className="chat-item-body">
-              <div className="chat-item-title">{c.title}</div>
+              <div className="chat-item-title">{c.title}{c.is_group ? ' 👥' : ''}</div>
               <div className="chat-item-preview">{c.last_message_preview}</div>
             </div>
             <div className="chat-item-time">{formatTime(c.last_message_at)}</div>
           </div>
         ))}
       </div>
-
-      <button className="new-chat-fab" onClick={onNewChat} title="Invite someone to chat">+</button>
     </div>
   )
 }

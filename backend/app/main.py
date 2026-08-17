@@ -152,9 +152,13 @@ def send_invite(payload: schemas.InviteCreate, db: Session = Depends(get_db)):
     if to_user.id == from_user.id:
         raise HTTPException(status_code=400, detail="You can't invite yourself")
 
+    # Only dedup against other 1:1 invites (conversation_id IS NULL) — group
+    # invites (tied to a specific conversation) are handled separately in
+    # create_group_chat() and shouldn't block a normal 1:1 invite.
     existing = (
         db.query(models.Invite)
         .filter(
+            models.Invite.conversation_id.is_(None),
             models.Invite.status != models.InviteStatus.declined,
             (
                 ((models.Invite.from_user_id == from_user.id) & (models.Invite.to_user_id == to_user.id))
@@ -178,6 +182,7 @@ def send_invite(payload: schemas.InviteCreate, db: Session = Depends(get_db)):
         direction="outgoing",
         from_user=from_user,
         to_user=to_user,
+        conversation_id=None,
         created_at=invite.created_at,
     )
 
@@ -199,6 +204,7 @@ def list_invites(user_id: str, db: Session = Depends(get_db)):
             direction="incoming" if inv.to_user_id == user_id else "outgoing",
             from_user=inv.from_user,
             to_user=inv.to_user,
+            conversation_id=inv.conversation_id,
             created_at=inv.created_at,
         )
         for inv in rows
@@ -216,6 +222,23 @@ def respond_invite(invite_id: str, payload: schemas.InviteRespond, db: Session =
         raise HTTPException(status_code=400, detail="This invite was already responded to")
 
     if payload.action == "accept":
+        if invite.conversation_id:
+            # Group invite — join the existing conversation instead of
+            # creating a new one.
+            convo = db.query(models.Conversation).get(invite.conversation_id)
+            if not convo:
+                raise HTTPException(status_code=404, detail="That group no longer exists")
+            already_in = (
+                db.query(models.ConversationParticipant)
+                .filter_by(conversation_id=convo.id, user_id=invite.to_user_id)
+                .first()
+            )
+            if not already_in:
+                db.add(models.ConversationParticipant(conversation_id=convo.id, user_id=invite.to_user_id))
+            invite.status = models.InviteStatus.accepted
+            db.commit()
+            return {"status": "accepted", "conversation_id": convo.id}
+
         convo = models.Conversation(is_group=False)
         db.add(convo)
         db.commit()
@@ -232,6 +255,67 @@ def respond_invite(invite_id: str, payload: schemas.InviteRespond, db: Session =
         return {"status": "declined", "conversation_id": None}
 
     raise HTTPException(status_code=400, detail="action must be 'accept' or 'decline'")
+
+
+# ---------------------------------------------------------------------------
+# REST: people search (by hobby/sport keyword) + group chat creation
+# ---------------------------------------------------------------------------
+
+@router.get("/users/search", response_model=list[schemas.UserSearchResult])
+def search_users(keyword: str, exclude_user_id: str = None, db: Session = Depends(get_db)):
+    kw = keyword.strip()
+    if not kw:
+        return []
+    pattern = f"%{kw}%"
+    query = db.query(models.User).filter(
+        models.User.hobbies.ilike(pattern) | models.User.sports.ilike(pattern)
+    )
+    if exclude_user_id:
+        query = query.filter(models.User.id != exclude_user_id)
+    return query.limit(30).all()
+
+
+@router.post("/conversations/group", response_model=schemas.GroupChatCreateResponse)
+def create_group_chat(payload: schemas.GroupChatCreate, db: Session = Depends(get_db)):
+    creator = db.query(models.User).get(payload.creator_id)
+    if not creator:
+        raise HTTPException(status_code=404, detail="Your account was not found")
+
+    cleaned_ids = [cid.strip().upper() for cid in payload.convoai_ids if cid.strip()]
+    if not cleaned_ids:
+        raise HTTPException(status_code=400, detail="Add at least one person to invite")
+
+    convo = models.Conversation(name=(payload.name or "").strip() or None, is_group=True)
+    db.add(convo)
+    db.commit()
+    db.refresh(convo)
+    db.add(models.ConversationParticipant(conversation_id=convo.id, user_id=creator.id))
+    db.commit()
+
+    results: list[schemas.GroupInviteResult] = []
+    for cid in cleaned_ids:
+        target = db.query(models.User).filter_by(username=cid).first()
+        if not target:
+            results.append(schemas.GroupInviteResult(convoai_id=cid, status="not_found", detail="No one has that ConvoAI ID"))
+            continue
+        if target.id == creator.id:
+            results.append(schemas.GroupInviteResult(convoai_id=cid, status="error", detail="That's you"))
+            continue
+
+        existing = (
+            db.query(models.Invite)
+            .filter_by(conversation_id=convo.id, to_user_id=target.id)
+            .first()
+        )
+        if existing:
+            results.append(schemas.GroupInviteResult(convoai_id=cid, status="already_invited"))
+            continue
+
+        db.add(models.Invite(from_user_id=creator.id, to_user_id=target.id, conversation_id=convo.id))
+        db.commit()
+        results.append(schemas.GroupInviteResult(convoai_id=cid, status="invited"))
+
+    return schemas.GroupChatCreateResponse(conversation_id=convo.id, results=results)
 
 
 # ---------------------------------------------------------------------------

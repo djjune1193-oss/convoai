@@ -5,6 +5,8 @@ import HomeScreen from './components/HomeScreen.jsx'
 import ChatWindow from './components/ChatWindow.jsx'
 import SendInviteModal from './components/SendInviteModal.jsx'
 import InvitesPanel from './components/InvitesPanel.jsx'
+import GroupChatModal from './components/GroupChatModal.jsx'
+import SearchPeopleModal from './components/SearchPeopleModal.jsx'
 import { createUser } from './api.js'
 
 export default function App() {
@@ -15,6 +17,8 @@ export default function App() {
   const [welcomeError, setWelcomeError] = useState(null)
   const [showSendInvite, setShowSendInvite] = useState(false)
   const [showInvites, setShowInvites] = useState(false)
+  const [showGroupChat, setShowGroupChat] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
 
   async function handleWelcomeSubmit(name) {
     setWelcomeError(null)
@@ -45,6 +49,13 @@ export default function App() {
     setView('chat')
   }
 
+  function handleGroupCreated(newConversationId) {
+    setShowGroupChat(false)
+    setConversationId(newConversationId)
+    setConversationTitle('New group')
+    setView('chat')
+  }
+
   function handleBackToHome() {
     setConversationId(null)
     setView('home')
@@ -71,9 +82,11 @@ export default function App() {
         <HomeScreen
           user={user}
           onOpenConversation={handleOpenConversation}
-          onNewChat={() => setShowSendInvite(true)}
           onOpenProfile={() => setView('profile-edit')}
           onOpenInvites={() => setShowInvites(true)}
+          onOpenSendInvite={() => setShowSendInvite(true)}
+          onOpenGroupChat={() => setShowGroupChat(true)}
+          onOpenSearch={() => setShowSearch(true)}
         />
         {showSendInvite && (
           <SendInviteModal currentUser={user} onClose={() => setShowSendInvite(false)} />
@@ -84,6 +97,16 @@ export default function App() {
             onClose={() => setShowInvites(false)}
             onAccepted={handleInviteAccepted}
           />
+        )}
+        {showGroupChat && (
+          <GroupChatModal
+            currentUser={user}
+            onClose={() => setShowGroupChat(false)}
+            onCreated={handleGroupCreated}
+          />
+        )}
+        {showSearch && (
+          <SearchPeopleModal currentUser={user} onClose={() => setShowSearch(false)} />
         )}
       </>
     )

@@ -99,4 +99,36 @@ class InviteOut(BaseModel):
     direction: str  # "incoming" | "outgoing", relative to the requesting user
     from_user: UserBrief
     to_user: UserBrief
+    conversation_id: Optional[str] = None  # set = this invite joins an existing (group) conversation
     created_at: datetime
+
+
+class UserSearchResult(BaseModel):
+    id: str
+    username: str
+    display_name: str
+    avatar_url: Optional[str] = None
+    status: Optional[str] = None
+    work: Optional[str] = None
+    sports: Optional[str] = None
+    hobbies: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class GroupChatCreate(BaseModel):
+    creator_id: str
+    name: Optional[str] = None
+    convoai_ids: List[str]
+
+
+class GroupInviteResult(BaseModel):
+    convoai_id: str
+    status: str  # "invited" | "not_found" | "already_invited" | "error"
+    detail: Optional[str] = None
+
+
+class GroupChatCreateResponse(BaseModel):
+    conversation_id: str
+    results: List[GroupInviteResult]

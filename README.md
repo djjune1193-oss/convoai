@@ -170,25 +170,25 @@ configurable via `ALLOWED_ORIGINS` in `.env` instead of wide open.
 ## What's here vs. what's next
 
 This is Step 1: unique-ID identity, profiles, an invite-gated connection
-model, multi-conversation navigation, the core AI mechanic (swipe → reply),
-location-aware nearby-places search, and per-message actions (like, reply,
-poll, delete) — all working end to end. Deliberately not yet built:
+model (1:1 and now group), multi-conversation navigation, the core AI
+mechanic (swipe → reply), location-aware nearby-places search, keyword
+people search by hobby/sport, and per-message actions (like, reply, poll,
+delete) — all working end to end, responsive from phone to desktop.
+Deliberately not yet built:
 
 - **Real authentication** — email/password with hashing and persistent
   sessions (JWT or server sessions). Today's unique-ID system is a
   stand-in; nothing survives a page refresh in a new browser tab.
-- **Group invites** — the backend's invite flow creates 1:1 conversations
-  only; inviting multiple people into one group chat isn't wired up yet.
-- **Interest matching** — work/sports/hobbies fields are captured and
-  stored but nothing uses them yet; that's the "connect people with similar
-  interests nearby" system mentioned as a future goal.
+- **Search result filtering** — 🔍 people search matches on hobbies/sports
+  substrings but doesn't yet exclude people you're already connected to,
+  or support multi-keyword/AND queries.
 - **Persistence of "who can see AI replies / poll results"** — right now
   everything is visible to every participant.
 - **Precise place data** — nearby-places uses Gemini's Maps grounding,
   which estimates distance/rating from grounded data rather than querying
   a Places API database directly.
-- **Live sports scores** — the 🌐 feature is Google Search grounding, which
-  is good for local news/events but not for in-progress game state (results
+- **Live sports scores** — the 🌐 feature is Tavily + Gemini synthesis,
+  good for local news/events but not for in-progress game state (results
   can lag). A real live-scores feature needs a dedicated sports data API
   (e.g. API-SPORTS) — not built yet.
 - **Read receipts, typing indicators for other users**

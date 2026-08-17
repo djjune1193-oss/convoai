@@ -493,3 +493,69 @@ input { font-family: var(--font-body); }
 .invite-accept { background: var(--sky-deep); color: white; }
 .invite-decline { background: var(--bg); color: var(--ink-soft); }
 .invite-waiting { font-size: 11.5px; color: var(--ink-soft); font-style: italic; }
+
+/* ---------- Home action row (Invite / Group / Search) ---------- */
+
+.home-actions {
+  display: flex; gap: 10px; margin-top: 16px;
+}
+.home-action {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 8px; border: none; border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.55); color: var(--ink);
+}
+.home-action:hover { background: rgba(255,255,255,0.8); }
+.home-action-icon { font-size: 20px; }
+.home-action-label { font-size: 11.5px; font-weight: 600; }
+
+/* ---------- Search people modal ---------- */
+
+.search-modal { width: 360px; max-height: 80vh; display: flex; flex-direction: column; }
+.search-go { width: auto; padding: 10px 16px !important; }
+.search-results {
+  overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+  margin: 8px 0; max-height: 340px;
+}
+.search-result-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.search-result-avatar { width: 38px; height: 38px; font-size: 13px; overflow: hidden; flex-shrink: 0; }
+.search-result-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.search-result-body { flex: 1; min-width: 0; }
+
+/* ===========================================================
+   Responsive layout — tablet and desktop
+   Mobile-first base styles above stay unchanged; these widen
+   the app's containers and give more breathing room on larger
+   screens instead of a narrow column with huge side margins.
+   =========================================================== */
+
+@media (min-width: 640px) {
+  .home-screen, .chat-window, .profile-screen {
+    max-width: 600px;
+    margin: 24px auto;
+    height: auto;
+    min-height: calc(100vh - 48px);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  body { background: linear-gradient(135deg, rgba(174,224,247,0.25), rgba(251,211,233,0.25)) fixed; }
+}
+
+@media (min-width: 1024px) {
+  .home-screen, .chat-window, .profile-screen {
+    max-width: 720px;
+    min-height: calc(100vh - 64px);
+    margin: 32px auto;
+  }
+  .welcome-wordmark { font-size: 48px; }
+  .message-list { padding: 24px; }
+  .bubble { max-width: 65%; }
+  .chat-item { padding: 14px 12px; }
+}
+
+@media (min-width: 640px) {
+  .modal, .search-modal, .invites-modal { width: 380px; }
+}
