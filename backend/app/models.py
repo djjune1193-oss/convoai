@@ -27,7 +27,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(String, primary_key=True, default=gen_uuid)
-    username = Column(String, unique=True, nullable=False)  # the "ConvoAI ID" — short, unique, shareable
+    username = Column(String, unique=True, nullable=False)  # user-chosen login ID, also the shareable "ConvoAI ID"
+    password_hash = Column(String, nullable=True)  # nullable for safe migration of pre-login accounts; always set on new signups
     display_name = Column(String, nullable=False)
     avatar_url = Column(String, nullable=True)
     status = Column(String, nullable=True)  # short text shown over the profile photo

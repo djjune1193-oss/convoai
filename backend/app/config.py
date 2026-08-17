@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     # Comma-separated list, e.g. "https://yourdomain.com,https://www.yourdomain.com"
     # Defaults wide open for local dev; set explicitly before deploying.
     ALLOWED_ORIGINS: str = "*"
+    # MUST be overridden in production .env — a default/leaked secret lets
+    # anyone forge a login session for any account. Generate a real one with:
+    #   python -c "import secrets; print(secrets.token_hex(32))"
+    JWT_SECRET: str = "dev-insecure-secret-change-me-before-deploying"
+    JWT_EXPIRE_DAYS: int = 30
 
     class Config:
         env_file = ".env"

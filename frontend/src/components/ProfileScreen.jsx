@@ -5,7 +5,7 @@ function initials(name) {
   return (name || '?').trim().slice(0, 2).toUpperCase()
 }
 
-export default function ProfileScreen({ user, mode, onSaved, onBack }) {
+export default function ProfileScreen({ user, mode, onSaved, onBack, onLogout }) {
   const [displayName, setDisplayName] = useState(user.display_name || '')
   const [status, setStatus] = useState(user.status || '')
   const [work, setWork] = useState(user.work || '')
@@ -131,6 +131,10 @@ export default function ProfileScreen({ user, mode, onSaved, onBack }) {
         <button className="welcome-cta" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : mode === 'setup' ? 'Continue to ConvoAI' : 'Save changes'}
         </button>
+
+        {onLogout && (
+          <button className="logout-button" onClick={onLogout}>Log out</button>
+        )}
       </div>
 
       {showFullscreen && (

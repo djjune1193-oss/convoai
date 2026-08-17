@@ -8,7 +8,7 @@ export default function GroupChatModal({ currentUser, onClose, onCreated }) {
   const [busy, setBusy] = useState(false)
 
   function updateId(i, value) {
-    setIds((prev) => prev.map((v, idx) => (idx === i ? value.toUpperCase() : v)))
+    setIds((prev) => prev.map((v, idx) => (idx === i ? value.toLowerCase() : v)))
   }
 
   function addId() {

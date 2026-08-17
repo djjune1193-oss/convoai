@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import WelcomeScreen from './components/WelcomeScreen.jsx'
 import ProfileScreen from './components/ProfileScreen.jsx'
 import HomeScreen from './components/HomeScreen.jsx'
@@ -7,28 +7,76 @@ import SendInviteModal from './components/SendInviteModal.jsx'
 import InvitesPanel from './components/InvitesPanel.jsx'
 import GroupChatModal from './components/GroupChatModal.jsx'
 import SearchPeopleModal from './components/SearchPeopleModal.jsx'
-import { createUser } from './api.js'
+import { clearToken, fetchMe, getToken, login, setToken, signup } from './api.js'
 
 export default function App() {
-  const [view, setView] = useState('welcome') // 'welcome' | 'profile-setup' | 'home' | 'profile-edit' | 'chat'
+  // 'checking' | 'welcome' | 'profile-setup' | 'home' | 'profile-edit' | 'chat'
+  const [view, setView] = useState('checking')
   const [user, setUser] = useState(null)
   const [conversationId, setConversationId] = useState(null)
   const [conversationTitle, setConversationTitle] = useState('Chat')
   const [welcomeError, setWelcomeError] = useState(null)
+  const [authLoading, setAuthLoading] = useState(false)
   const [showSendInvite, setShowSendInvite] = useState(false)
   const [showInvites, setShowInvites] = useState(false)
   const [showGroupChat, setShowGroupChat] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
 
-  async function handleWelcomeSubmit(name) {
+  // On load: if a session token is already stored, try to restore it
+  // instead of showing the welcome screen — this is what makes "log in
+  // once, stay logged in" actually work across refreshes/new tabs.
+  useEffect(() => {
+    const token = getToken()
+    if (!token) {
+      setView('welcome')
+      return
+    }
+    fetchMe(token)
+      .then((u) => {
+        setUser(u)
+        setView('home')
+      })
+      .catch(() => {
+        clearToken()
+        setView('welcome')
+      })
+  }, [])
+
+  async function handleSignup(username, password, displayName) {
     setWelcomeError(null)
+    setAuthLoading(true)
     try {
-      const u = await createUser(name)
+      const { token, user: u } = await signup(username, password, displayName)
+      setToken(token)
       setUser(u)
-      setView('profile-setup')
+      setView('profile-setup') // brand new account — walk through profile setup
     } catch (err) {
       setWelcomeError(err.message)
+    } finally {
+      setAuthLoading(false)
     }
+  }
+
+  async function handleLogin(username, password) {
+    setWelcomeError(null)
+    setAuthLoading(true)
+    try {
+      const { token, user: u } = await login(username, password)
+      setToken(token)
+      setUser(u)
+      setView('home') // returning account — skip straight to the chat list
+    } catch (err) {
+      setWelcomeError(err.message)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  function handleLogout() {
+    clearToken()
+    setUser(null)
+    setConversationId(null)
+    setView('welcome')
   }
 
   function handleProfileSaved(updatedUser) {
@@ -61,8 +109,23 @@ export default function App() {
     setView('home')
   }
 
+  if (view === 'checking') {
+    return (
+      <div className="welcome-screen">
+        <div className="welcome-orb" />
+      </div>
+    )
+  }
+
   if (view === 'welcome') {
-    return <WelcomeScreen onSubmit={handleWelcomeSubmit} error={welcomeError} />
+    return (
+      <WelcomeScreen
+        onSignup={handleSignup}
+        onLogin={handleLogin}
+        error={welcomeError}
+        loading={authLoading}
+      />
+    )
   }
 
   if (view === 'profile-setup' || view === 'profile-edit') {
@@ -72,6 +135,7 @@ export default function App() {
         mode={view === 'profile-setup' ? 'setup' : 'edit'}
         onSaved={view === 'profile-setup' ? handleProfileSaved : (u) => { setUser(u); setView('home') }}
         onBack={() => setView('home')}
+        onLogout={view === 'profile-edit' ? handleLogout : undefined}
       />
     )
   }

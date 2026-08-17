@@ -1,15 +1,14 @@
 import json
 import os
-import random
-import string
 import uuid
 
 from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from . import auth_service, models, schemas
 from .claude_service import AI_DISPLAY_NAME, find_nearby_places, get_ai_reply, get_web_answer
 from .config import settings
 from .database import Base, engine, get_db
@@ -51,38 +50,67 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 # ---------------------------------------------------------------------------
-# Identity: unique "ConvoAI ID" generation (stands in for real auth for now)
+# Auth: signup, login, session restore
 # ---------------------------------------------------------------------------
 
-ID_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I — easier to read aloud/type
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def generate_convoai_id(db: Session, length: int = 7) -> str:
-    for _ in range(50):
-        candidate = "".join(random.choices(ID_ALPHABET, k=length))
-        if not db.query(models.User).filter_by(username=candidate).first():
-            return candidate
-    raise RuntimeError("Could not generate a unique ConvoAI ID — try again")
+@router.post("/auth/signup", response_model=schemas.AuthResponse)
+def signup(payload: schemas.SignupRequest, db: Session = Depends(get_db)):
+    try:
+        username = auth_service.validate_username(payload.username)
+        auth_service.validate_password(payload.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-
-# ---------------------------------------------------------------------------
-# REST: users & profiles
-# ---------------------------------------------------------------------------
-
-@router.post("/users", response_model=schemas.UserOut)
-def create_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     if not payload.display_name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
 
+    if db.query(models.User).filter_by(username=username).first():
+        raise HTTPException(status_code=400, detail="That user ID is already taken")
+
     user = models.User(
-        username=generate_convoai_id(db),
+        username=username,
+        password_hash=auth_service.hash_password(payload.password),
         display_name=payload.display_name.strip(),
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    return schemas.AuthResponse(token=auth_service.create_token(user.id), user=user)
+
+
+@router.post("/auth/login", response_model=schemas.AuthResponse)
+def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+    username = payload.username.strip().lower()
+    user = db.query(models.User).filter_by(username=username).first()
+
+    if not user or not user.password_hash or not auth_service.verify_password(payload.password, user.password_hash):
+        # Same message whether the username doesn't exist or the password is
+        # wrong — don't reveal which one to a caller probing for valid IDs.
+        raise HTTPException(status_code=401, detail="Incorrect user ID or password")
+
+    return schemas.AuthResponse(token=auth_service.create_token(user.id), user=user)
+
+
+@router.get("/auth/me", response_model=schemas.UserOut)
+def get_me(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme), db: Session = Depends(get_db)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = auth_service.decode_token(credentials.credentials)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Session expired — please log in again")
+    user = db.query(models.User).get(user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Account not found")
     return user
 
+
+# ---------------------------------------------------------------------------
+# REST: users & profiles
+# ---------------------------------------------------------------------------
 
 @router.get("/users/{user_id}", response_model=schemas.UserOut)
 def get_user(user_id: str, db: Session = Depends(get_db)):
@@ -146,7 +174,7 @@ def send_invite(payload: schemas.InviteCreate, db: Session = Depends(get_db)):
     if not from_user:
         raise HTTPException(status_code=404, detail="Your account was not found")
 
-    to_user = db.query(models.User).filter_by(username=payload.to_convoai_id.strip().upper()).first()
+    to_user = db.query(models.User).filter_by(username=payload.to_convoai_id.strip().lower()).first()
     if not to_user:
         raise HTTPException(status_code=404, detail="No one has that ConvoAI ID")
     if to_user.id == from_user.id:
@@ -281,7 +309,7 @@ def create_group_chat(payload: schemas.GroupChatCreate, db: Session = Depends(ge
     if not creator:
         raise HTTPException(status_code=404, detail="Your account was not found")
 
-    cleaned_ids = [cid.strip().upper() for cid in payload.convoai_ids if cid.strip()]
+    cleaned_ids = [cid.strip().lower() for cid in payload.convoai_ids if cid.strip()]
     if not cleaned_ids:
         raise HTTPException(status_code=400, detail="Add at least one person to invite")
 

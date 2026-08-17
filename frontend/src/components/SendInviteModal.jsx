@@ -41,9 +41,9 @@ export default function SendInviteModal({ currentUser, onClose }) {
             </p>
             <input
               className="modal-input"
-              placeholder="e.g. K7M2QXR"
+              placeholder="e.g. alice123"
               value={convoaiId}
-              onChange={(e) => setConvoaiId(e.target.value.toUpperCase())}
+              onChange={(e) => setConvoaiId(e.target.value.toLowerCase())}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
             {error && <div className="modal-error">{error}</div>}

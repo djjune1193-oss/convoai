@@ -8,6 +8,17 @@ class UserCreate(BaseModel):
     display_name: str
 
 
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+    display_name: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
 class UserOut(BaseModel):
     id: str
     username: str  # the ConvoAI ID
@@ -132,3 +143,8 @@ class GroupInviteResult(BaseModel):
 class GroupChatCreateResponse(BaseModel):
     conversation_id: str
     results: List[GroupInviteResult]
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserOut

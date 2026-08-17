@@ -4,18 +4,48 @@
 const API_BASE = '/api'
 export { API_BASE }
 
+const TOKEN_KEY = 'convoai_token'
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY)
+}
+export function setToken(token) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 export async function fetchMessages(conversationId) {
   const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages`)
   return res.json()
 }
 
-export async function createUser(displayName) {
-  const res = await fetch(`${API_BASE}/users`, {
+export async function signup(username, password, displayName) {
+  const res = await fetch(`${API_BASE}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ display_name: displayName }),
+    body: JSON.stringify({ username, password, display_name: displayName }),
   })
-  if (!res.ok) throw new Error((await res.json()).detail || 'Could not create account')
+  if (!res.ok) throw new Error((await res.json()).detail || 'Could not sign up')
+  return res.json() // { token, user }
+}
+
+export async function login(username, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Could not log in')
+  return res.json()
+}
+
+export async function fetchMe(token) {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Session expired')
   return res.json()
 }
 

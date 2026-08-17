@@ -1,20 +1,23 @@
 # ConvoAI — Step 1 (Web)
 
 A working end-to-end prototype: FastAPI + WebSocket backend, React (Vite)
-frontend. Each person gets a unique **ConvoAI ID** and a profile (photo,
-status, optional work/sports/hobbies). You can only chat with someone after
-they accept your invite — sent by entering their ConvoAI ID. Inside a chat:
-swipe a message left for an inline **Gemini** reply, tap 📍 for nearby
-places (Gemini's Google Maps grounding) or 🌐 for "what's happening today"
+frontend. Sign up with a **User ID and password you choose** — that ID
+doubles as your shareable **ConvoAI ID**. Log back in anytime with the same
+credentials; sessions persist across refreshes and new tabs. Add a profile
+(photo, status, optional work/sports/hobbies). You can only chat with
+someone after they accept your invite — sent by entering their ConvoAI ID,
+or find people by shared interest via 🔍 search. Inside a chat: swipe a
+message left for an inline **Gemini** reply, tap 📍 for nearby places
+(Gemini's Google Maps grounding) or 🌐 for "what's happening today"
 (**Tavily** search + Gemini synthesis — kept off Gemini's own search tool
 to avoid its rate limit), and use the **⋯** menu on any message to like,
 reply, turn it into a poll, or delete it.
 
-**Note on identity:** this uses a system-generated unique ID instead of
-email/password login for now — there's no persistent session, so refreshing
-or reopening the app in a new browser creates a new account. Full
-email+password authentication with real sessions is planned for a later
-pass; treat this as the identity layer it's built on top of.
+**Note on auth scope:** login/signup/sessions are real (bcrypt-hashed
+passwords, JWT tokens). What's *not* yet built: the rest of the API doesn't
+re-verify that token on every request — it still trusts a client-supplied
+user ID directly on most calls. See `deploy/DEPLOY.md`'s auth section, or
+`backend/README.md`, for the exact boundary.
 
 Commands below are for **Windows (Command Prompt)**. If you're using
 PowerShell or macOS/Linux, see the notes after each block.
@@ -78,14 +81,16 @@ Leave this running too — it'll print a local URL, usually
 
 1. Open `http://localhost:5173` in two different windows (e.g. a normal
    window and an incognito one) to act as two people, "Alice" and "Bob."
-2. **Alice:** enter a name, click **Get started**. You'll land on the
-   **profile setup** screen — add a photo, a status, and optionally
-   work/sports/hobbies, then **Continue to ConvoAI**. Note the **ConvoAI
-   ID** shown on this page (e.g. `K7M2QXR`) — that's what people use to
-   invite you.
-3. **Bob:** same thing in the other window, note his ConvoAI ID too.
-4. **Alice:** on the home screen, tap **+**, enter Bob's ConvoAI ID, **Send
-   invite**.
+2. **Alice:** on the **Sign up** tab, pick a User ID (e.g. `alice1`), a
+   password, and enter a display name, then **Create account**. That User
+   ID *is* her ConvoAI ID — remember it, since she'll log back in with it.
+   You'll land on **profile setup** — add a photo, a status, and optionally
+   work/sports/hobbies, then **Continue to ConvoAI**.
+3. **Bob:** same thing in the other window, his own User ID/password.
+4. **Alice:** on the home screen, tap **👤➕ Invite**, enter Bob's ConvoAI
+   ID, **Send invite**. (The **👥 Group** button does the same thing for
+   multiple people at once; **🔍 Search** finds people by hobby/sport
+   keyword instead of by ID.)
 5. **Bob:** tap the **🔔** button (it'll show a badge), see Alice's invite
    under "For you," tap **Accept**. This drops Bob straight into the new
    chat.
@@ -100,12 +105,16 @@ Leave this running too — it'll print a local URL, usually
 
    Note on 🌐: it's genuinely good for local news/events and general
    "what's current" questions, but **not reliable for live sports scores**
-   — Google Search grounding can lag behind an in-progress game. A live
-   score feature would need a dedicated sports data API (e.g. API-SPORTS),
-   which isn't built here yet.
+   — search results can lag behind an in-progress game. A live score
+   feature would need a dedicated sports data API (e.g. API-SPORTS), which
+   isn't built here yet.
 8. Tap your own avatar/name at the top of the home screen any time to
    revisit and edit your profile — clicking your photo there opens it
-   full-screen with your status overlaid at the bottom.
+   full-screen with your status overlaid at the bottom. A **Log out**
+   button is at the bottom of that screen.
+9. Close the tab and reopen `http://localhost:5173` — you should land
+   straight on your chat list, not the welcome screen. That's the actual
+   point of this update: the session persists now.
 
 ## Troubleshooting
 
@@ -146,8 +155,18 @@ Leave this running too — it'll print a local URL, usually
 - **Home screen stuck on "Loading your chats…"** — check the backend
   terminal; this calls `GET /users/{id}/conversations`, so a stack trace
   there usually points at the stale-database issue above.
-- **"No one has that ConvoAI ID"** — IDs are case-sensitive-generated but
-  compared uppercase; make sure you copied it exactly, no extra spaces.
+- **"No one has that ConvoAI ID"** — IDs are lowercase-normalized on both
+  ends, so casing shouldn't matter, but check for extra spaces or a typo.
+- **"Incorrect user ID or password"** — same message whether the ID
+  doesn't exist or the password's wrong (deliberate, so a failed login
+  doesn't reveal which valid IDs exist). Double-check both.
+- **Signed up before this update, now can't log in** — accounts created
+  under the old auto-generated-ID system have no password on file and
+  can't log in under the new system. Sign up fresh under a User ID you
+  choose.
+- **Logged out unexpectedly after ~30 days** — sessions expire per
+  `JWT_EXPIRE_DAYS` in `.env` (default 30). Just log back in; adjust that
+  value if you want a longer/shorter session lifetime.
 - **Photo upload fails** — make sure `python-multipart` installed (it's in
   `requirements.txt`); this is required for FastAPI to parse file uploads
   and is easy to miss if you only partially re-ran `pip install`.
@@ -169,16 +188,21 @@ configurable via `ALLOWED_ORIGINS` in `.env` instead of wide open.
 
 ## What's here vs. what's next
 
-This is Step 1: unique-ID identity, profiles, an invite-gated connection
-model (1:1 and now group), multi-conversation navigation, the core AI
-mechanic (swipe → reply), location-aware nearby-places search, keyword
-people search by hobby/sport, and per-message actions (like, reply, poll,
-delete) — all working end to end, responsive from phone to desktop.
-Deliberately not yet built:
+This is Step 1: real login (bcrypt + JWT sessions), profiles, an
+invite-gated connection model (1:1 and group), multi-conversation
+navigation, the core AI mechanic (swipe → reply), location-aware
+nearby-places search, keyword people search by hobby/sport, and
+per-message actions (like, reply, poll, delete) — all working end to end,
+responsive from phone to desktop. Deliberately not yet built:
 
-- **Real authentication** — email/password with hashing and persistent
-  sessions (JWT or server sessions). Today's unique-ID system is a
-  stand-in; nothing survives a page refresh in a new browser tab.
+- **Full request-level auth** — login/signup/sessions are real, but the
+  rest of the API still trusts a client-supplied user ID directly on most
+  calls instead of re-verifying the JWT every time. See `backend/README.md`'s
+  auth section for the exact boundary — closing this fully means touching
+  every WebSocket handler and endpoint, not just the login flow.
+- **Account recovery** — no "forgot password" flow; losing your password
+  means losing access to that account (there's no email on file to reset
+  via).
 - **Search result filtering** — 🔍 people search matches on hobbies/sports
   substrings but doesn't yet exclude people you're already connected to,
   or support multi-keyword/AND queries.

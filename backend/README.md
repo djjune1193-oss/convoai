@@ -54,23 +54,32 @@ error rather than appear.
 
 ## How the pieces fit
 
-- `POST /users` — create an account: `{display_name}` → generates a unique
-  ConvoAI ID (7-character code, stored in `username`) and returns the user
+- `POST /auth/signup` — `{username, password, display_name}` → creates the
+  account and returns `{token, user}`. `username` is the chosen login ID /
+  ConvoAI ID (lowercase-normalized, 3-20 chars).
+- `POST /auth/login` — `{username, password}` → `{token, user}`
+- `GET /auth/me` — `Authorization: Bearer <token>` → the current user, used
+  to restore a session on app load
 - `GET /users/{id}` — fetch a user
 - `PATCH /users/{id}` — update profile fields (display_name, status, work,
   sports, hobbies) — all optional, only provided fields change
 - `POST /users/{id}/avatar` — multipart file upload for a profile photo;
   serves back a URL under `/uploads/avatars/...`
-- `POST /invites` — `{from_user_id, to_convoai_id}` — send an invite by the
-  recipient's ConvoAI ID; fails if that ID doesn't exist, is your own, or
-  you already have a pending/accepted invite with them
+- `GET /users/search?keyword=...&exclude_user_id=...` — matches on
+  `hobbies`/`sports` substrings, for the 🔍 people-search feature
+- `POST /invites` — `{from_user_id, to_convoai_id}` — send a 1:1 invite by
+  the recipient's ConvoAI ID; fails if that ID doesn't exist, is your own,
+  or you already have a pending/accepted invite with them
 - `GET /users/{id}/invites` — all invites involving this user, each tagged
   `direction: "incoming" | "outgoing"`
 - `POST /invites/{id}/respond` — `{user_id, action: "accept"|"decline"}`
-  (only the recipient can respond); accepting creates the 1:1 conversation
-  and returns its id
+  (only the recipient can respond); accepting a 1:1 invite creates a new
+  conversation, accepting a group invite (has `conversation_id` set) joins
+  the existing one
 - `POST /conversations` — create a conversation directly between user IDs
   (used internally by invite acceptance; not exposed in the current UI)
+- `POST /conversations/group` — `{creator_id, name, convoai_ids: [...]}` —
+  creates a group conversation and sends each listed ID an invite tied to it
 - `POST /conversations/{id}/participants` — add a user to an existing
   conversation (kept for flexibility; not used by the current invite-only
   UI flow)
@@ -97,17 +106,36 @@ error rather than appear.
   broadcasts the reply back down the same socket as a normal message with
   `sender_type: "ai"`.
 
-## Identity model (current, temporary)
+## Identity & auth model
 
-There's no password auth yet. `POST /users` generates a random, unique
-7-character ConvoAI ID server-side (letters/digits, excluding ambiguous
-characters like `0`/`O`/`1`/`I`) and that's the account's permanent handle
-— shown on the profile screen for the user to share, and used as the
-lookup key for invites. There is no login step and no session token, so a
-new browser tab or a page refresh currently creates a brand-new account.
-Swapping this for real email+password (or OAuth) with persistent sessions
-is the next planned piece — when that happens, the ConvoAI ID concept can
-stay as a shareable handle, it'll just sit behind a real login.
+`POST /auth/signup` — user picks their own **User ID** (3-20 chars,
+letters/numbers/underscore/hyphen, normalized to lowercase) and a password
+(min 6 chars), plus a display name. Password is hashed with bcrypt; the
+User ID doubles as the shareable "ConvoAI ID" used for invites and group
+chat lookups.
+
+`POST /auth/login` — verifies the User ID + password, returns a JWT session
+token (`JWT_SECRET`/`JWT_EXPIRE_DAYS` in `.env`, default 30-day expiry).
+
+`GET /auth/me` — `Authorization: Bearer <token>` header; used on app load
+to restore a session instead of re-prompting login on every refresh/new
+tab. Frontend stores the token in `localStorage`.
+
+**Scope boundary, stated plainly:** this covers signup/login/session-restore
+only. The rest of the API — every WebSocket event, most REST endpoints —
+still trusts a client-supplied `user_id`/`sender_id`/`requester_id` directly
+rather than re-verifying the JWT on every call. That's a real gap, not an
+oversight: closing it means threading token verification through every
+WebSocket handler and endpoint, which is a substantially bigger change than
+"add login" and hasn't been done yet. Don't treat this as safe against a
+malicious client impersonating another user's ID in a request body.
+
+**Migration note:** `password_hash` is nullable in the schema specifically
+so this could be added without breaking existing rows on a live database.
+Any account created before this change has no password and **cannot log
+in** — it has no way to set one retroactively without an explicit
+"claim your old account" flow, which isn't built. Those accounts are
+effectively orphaned; create a new one under a chosen User ID instead.
 
 ## Nearby places (Google Maps grounding via Gemini)
 

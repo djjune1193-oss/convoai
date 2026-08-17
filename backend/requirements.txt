@@ -8,5 +8,7 @@ pydantic-settings==2.5.2
 # Interactions API (client.interactions.create), only available in 2.0.0+
 google-genai>=2.0.0
 requests==2.32.3
+bcrypt==4.2.0
+PyJWT==2.9.0
 python-dotenv==1.0.1
 websockets==13.1
