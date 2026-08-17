@@ -112,6 +112,26 @@ def get_me(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme), d
 # REST: users & profiles
 # ---------------------------------------------------------------------------
 
+# IMPORTANT: this must stay registered BEFORE /users/{user_id} below.
+# FastAPI/Starlette match routes in registration order, and {user_id} is a
+# wildcard that matches literally anything — including the string "search".
+# If this moves below /users/{user_id} again, every request to
+# /users/search gets swallowed by get_user(user_id="search") instead,
+# which is exactly the bug that caused search to always return 404.
+@router.get("/users/search", response_model=list[schemas.UserSearchResult])
+def search_users(keyword: str, exclude_user_id: str = None, db: Session = Depends(get_db)):
+    kw = keyword.strip()
+    if not kw:
+        return []
+    pattern = f"%{kw}%"
+    query = db.query(models.User).filter(
+        models.User.hobbies.ilike(pattern) | models.User.sports.ilike(pattern)
+    )
+    if exclude_user_id:
+        query = query.filter(models.User.id != exclude_user_id)
+    return query.limit(30).all()
+
+
 @router.get("/users/{user_id}", response_model=schemas.UserOut)
 def get_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(models.User).get(user_id)
@@ -286,22 +306,8 @@ def respond_invite(invite_id: str, payload: schemas.InviteRespond, db: Session =
 
 
 # ---------------------------------------------------------------------------
-# REST: people search (by hobby/sport keyword) + group chat creation
+# REST: group chat creation
 # ---------------------------------------------------------------------------
-
-@router.get("/users/search", response_model=list[schemas.UserSearchResult])
-def search_users(keyword: str, exclude_user_id: str = None, db: Session = Depends(get_db)):
-    kw = keyword.strip()
-    if not kw:
-        return []
-    pattern = f"%{kw}%"
-    query = db.query(models.User).filter(
-        models.User.hobbies.ilike(pattern) | models.User.sports.ilike(pattern)
-    )
-    if exclude_user_id:
-        query = query.filter(models.User.id != exclude_user_id)
-    return query.limit(30).all()
-
 
 @router.post("/conversations/group", response_model=schemas.GroupChatCreateResponse)
 def create_group_chat(payload: schemas.GroupChatCreate, db: Session = Depends(get_db)):
