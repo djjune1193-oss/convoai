@@ -13,6 +13,7 @@ export default function MessageBubble({
   onMakePoll,
   onDelete,
   onVotePoll,
+  onViewProfile,
 }) {
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -24,6 +25,25 @@ export default function MessageBubble({
   const isOwn = message.sender_id === currentUser.id
   const side = isOwn ? 'own' : 'other'
   const liked = (message.liked_user_ids || []).includes(currentUser.id)
+
+  // Places/web-search messages are always AI-authored (no profile to view).
+  // Plain text and polls carry a real sender_id, so their name is clickable
+  // — except your own, since you already know your own profile.
+  const nameClickable = !isAI && !isOwn
+
+  function SenderName() {
+    if (!nameClickable) {
+      return <div className="bubble-sender">{message.sender_name}</div>
+    }
+    return (
+      <div
+        className="bubble-sender bubble-sender-clickable"
+        onClick={(e) => { e.stopPropagation(); onViewProfile(message.sender_id) }}
+      >
+        {message.sender_name}
+      </div>
+    )
+  }
 
   function onPointerDown(e) {
     if (isAI || message.deleted) return
@@ -77,7 +97,7 @@ export default function MessageBubble({
     return (
       <div className={`bubble-row ${side}`}>
         <div className="bubble bubble-poll">
-          <div className="bubble-sender">{message.sender_name}</div>
+          <SenderName />
           <div className="poll-question">📊 {poll.question}</div>
           <div className="poll-options">
             {poll.options.map((opt) => {
@@ -192,7 +212,7 @@ export default function MessageBubble({
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
       >
-        <div className="bubble-sender">{message.sender_name}</div>
+        <SenderName />
         <div className="bubble-content">{message.content}</div>
 
         <div className="bubble-footer">

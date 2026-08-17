@@ -49,6 +49,12 @@ export async function fetchMe(token) {
   return res.json()
 }
 
+export async function fetchUser(userId) {
+  const res = await fetch(`${API_BASE}/users/${userId}`)
+  if (!res.ok) throw new Error((await res.json()).detail || 'Could not load profile')
+  return res.json()
+}
+
 export async function updateProfile(userId, fields) {
   const res = await fetch(`${API_BASE}/users/${userId}`, {
     method: 'PATCH',

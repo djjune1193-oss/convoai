@@ -3,6 +3,7 @@ import MessageBubble from './MessageBubble.jsx'
 import NearbyModal from './NearbyModal.jsx'
 import WebSearchModal from './WebSearchModal.jsx'
 import PollCreateModal from './PollCreateModal.jsx'
+import ProfileViewModal from './ProfileViewModal.jsx'
 import { fetchMessages } from '../api.js'
 import { connectSocket } from '../ws.js'
 
@@ -14,6 +15,7 @@ export default function ChatWindow({ conversationId, conversationTitle, currentU
   const [showWebSearch, setShowWebSearch] = useState(false)
   const [replyTarget, setReplyTarget] = useState(null)
   const [pollTarget, setPollTarget] = useState(null) // the message being turned into a poll
+  const [viewingProfileUserId, setViewingProfileUserId] = useState(null)
   const socketRef = useRef(null)
   const bottomRef = useRef(null)
 
@@ -118,6 +120,7 @@ export default function ChatWindow({ conversationId, conversationTitle, currentU
             onMakePoll={setPollTarget}
             onDelete={deleteMessage}
             onVotePoll={votePoll}
+            onViewProfile={setViewingProfileUserId}
           />
         ))}
         {pending === 'reply' && <div className="typing-indicator">Gemini is thinking…</div>}
@@ -160,6 +163,12 @@ export default function ChatWindow({ conversationId, conversationTitle, currentU
           initialQuestion={pollTarget.content}
           onClose={() => setPollTarget(null)}
           onCreate={createPoll}
+        />
+      )}
+      {viewingProfileUserId && (
+        <ProfileViewModal
+          userId={viewingProfileUserId}
+          onClose={() => setViewingProfileUserId(null)}
         />
       )}
     </div>
