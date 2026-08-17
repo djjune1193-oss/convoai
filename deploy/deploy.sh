@@ -1,11 +1,11 @@
 #!/bin/bash
 # Run this on the server after pushing new code to GitHub:
-#   ssh YOUR_USER@YOUR_DROPLET_IP 'cd /home/YOUR_USER/convoai && ./deploy/deploy.sh'
+#   ssh root@YOUR_DROPLET_IP 'cd /root/convoai && ./deploy/deploy.sh'
 # or SSH in first and run it locally on the server — either way, same effect.
 
 set -e
 
-TARGET="/home/YOUR_USER/convoai"
+TARGET="/root/convoai"
 cd "$TARGET"
 
 echo "→ Pulling latest from GitHub..."

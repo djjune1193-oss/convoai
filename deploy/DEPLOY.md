@@ -2,12 +2,14 @@
 
 Assumes an Ubuntu droplet (22.04/24.04 — DigitalOcean's default), a domain
 already pointed at the droplet's IP (an A record), and your own GitHub
-repo for this project. Replace `YOUR_DOMAIN`, `YOUR_DROPLET_IP`,
-`YOUR_USER` (whatever account you SSH in as — check with `whoami`), and
-`YOUR_GITHUB_REPO` below with your actual values throughout.
+repo for this project. Replace `YOUR_DOMAIN` and `YOUR_DROPLET_IP` below
+with your actual values.
 
-No dedicated deploy user — everything runs as the account you already SSH
-in with.
+**This guide is written for running as `root`** (DigitalOcean's default
+droplet login), matching a confirmed working setup — paths below are
+`/root/convoai`. If you're on a non-root user instead, swap `/root/convoai`
+for `/home/your-username/convoai` throughout, and `root` for your actual
+username in the systemd service's `User=`/`Group=` lines.
 
 ---
 
@@ -89,9 +91,9 @@ straight into your home directory. No `sudo`, no `chown` — it's already
 yours:
 
 ```bash
-git clone https://github.com/djjune1193-oss/convoai.git /home/YOUR_USER/convoai
+git clone https://github.com/djjune1193-oss/convoai.git /root/convoai
 ```
-(Replace `YOUR_USER` with your actual username — check with `whoami` — or
+(Replace `your-username` with your actual username if not on root — or
 just run `git clone https://github.com/djjune1193-oss/convoai.git ~/convoai`,
 which does the same thing.)
 
@@ -100,7 +102,7 @@ which does the same thing.)
 ## 5. Add your real API keys (one-time, manual)
 
 ```bash
-cd /home/YOUR_USER/convoai/backend
+cd /root/convoai/backend
 cp .env.example .env
 nano .env
 ```
@@ -123,7 +125,7 @@ only do this once (or again if a key changes).
 ## 6. First deploy
 
 ```bash
-cd /home/YOUR_USER/convoai
+cd /root/convoai
 chmod +x deploy/deploy.sh
 ./deploy/deploy.sh
 ```
@@ -137,8 +139,7 @@ continue to step 7.
 ## 7. Install the systemd service
 
 ```bash
-sudo cp /home/YOUR_USER/convoai/deploy/convoai-backend.service /etc/systemd/system/
-sudo nano /etc/systemd/system/convoai-backend.service   # replace YOUR_USER (both User= and Group=)
+sudo cp /root/convoai/deploy/convoai-backend.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now convoai-backend
 sudo systemctl status convoai-backend    # should show "active (running)"
@@ -149,7 +150,7 @@ sudo systemctl status convoai-backend    # should show "active (running)"
 ## 8. Install the Nginx config
 
 ```bash
-sudo cp /home/YOUR_USER/convoai/deploy/nginx-convoai.conf /etc/nginx/sites-available/convoai
+sudo cp /root/convoai/deploy/nginx-convoai.conf /etc/nginx/sites-available/convoai
 sudo nano /etc/nginx/sites-available/convoai   # replace YOUR_DOMAIN with your real domain
 sudo ln -s /etc/nginx/sites-available/convoai /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default     # remove the default placeholder site
@@ -190,23 +191,26 @@ git push origin main
 
 Then either SSH in and run the script:
 ```bash
-ssh YOUR_USER@YOUR_DROPLET_IP
-cd /home/YOUR_USER/convoai && ./deploy/deploy.sh
+ssh root@YOUR_DROPLET_IP
+cd /root/convoai && ./deploy/deploy.sh
 ```
 or do it as a single line from your own machine without a separate login
 step:
 ```bash
-ssh YOUR_USER@YOUR_DROPLET_IP 'cd /home/YOUR_USER/convoai && ./deploy/deploy.sh'
+ssh root@YOUR_DROPLET_IP 'cd /root/convoai && ./deploy/deploy.sh'
 ```
 
-**Optional convenience:** `deploy.sh` calls `sudo systemctl restart
-convoai-backend`, which will prompt for your password each time unless you
-allow that one specific command without a password:
+**Optional convenience:** **If you're on root (this guide's default), skip this** — root already has
+full access and `sudo` doesn't prompt for a password anyway, so there's
+nothing to work around. This only matters if you're on a non-root user:
+`deploy.sh` calls `sudo systemctl restart convoai-backend`, which would
+otherwise prompt for a password on every deploy unless you allow that one
+specific command without one:
 ```bash
-echo "YOUR_USER ALL=(root) NOPASSWD: /bin/systemctl restart convoai-backend" | sudo tee /etc/sudoers.d/convoai-deploy
+echo "your-username ALL=(root) NOPASSWD: /bin/systemctl restart convoai-backend" | sudo tee /etc/sudoers.d/convoai-deploy
 ```
-That's the only command it's allowed to run passwordlessly — not blanket
-sudo access.
+That's the only command it'd be allowed to run passwordlessly — not
+blanket sudo access.
 
 Watch a deploy happen live if you want:
 ```bash
@@ -229,7 +233,7 @@ that built.
   the private key.
 - **Backend won't start** — `sudo journalctl -u convoai-backend -n 50` for
   the actual Python traceback. Common cause: `.env` missing a required key,
-  or the venv wasn't created (check `/home/YOUR_USER/convoai/backend/venv` exists).
+  or the venv wasn't created (check `/root/convoai/backend/venv` exists).
 - **502 Bad Gateway** — Nginx is up but can't reach the backend. Check
   `sudo systemctl status convoai-backend`; if it's not running, see above.
 - **CORS errors in browser console** — `ALLOWED_ORIGINS` in `.env` doesn't
@@ -242,7 +246,7 @@ that built.
   browser console for the actual WS URL it tried. It should be
   `wss://YOUR_DOMAIN/ws/...`. If it's `ws://` (not `wss://`) on an HTTPS
   page, that's a mixed-content block — confirms HTTPS isn't fully set up.
-- **Photo uploads 404** — confirm `/home/YOUR_USER/convoai/backend/uploads/`
+- **Photo uploads 404** — confirm `/root/convoai/backend/uploads/`
   exists and is writable by whatever user the `convoai-backend` service
   runs as (it's created automatically on backend startup, so this usually
   means the service crashed before creating it — check the logs).
@@ -253,8 +257,8 @@ that built.
   Nginx (running as `www-data`) may not have permission to traverse into
   it, depending on your server's default permissions. Fix:
   ```bash
-  chmod o+x /home/YOUR_USER
-  chmod -R o+rX /home/YOUR_USER/convoai/frontend/dist
+  chmod o+x /root
+  chmod -R o+rX /root/convoai/frontend/dist
   ```
 
 ## What's still manual / not automated here

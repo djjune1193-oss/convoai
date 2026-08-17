@@ -1,7 +1,8 @@
 # Install: sudo cp deploy/convoai-backend.service /etc/systemd/system/
-# First, replace YOUR_USER below with whatever account you SSH into the
-# droplet as (run `whoami` on the server to check) — no dedicated deploy
-# user needed, this just runs as you.
+# Runs as root (this server's actual setup). If you ever switch to a
+# non-root deploy user, update User=, Group=, WorkingDirectory=, and
+# ExecStart= below, plus the matching paths in deploy.sh and
+# nginx-convoai.conf.
 # Then:    sudo systemctl daemon-reload && sudo systemctl enable --now convoai-backend
 
 [Unit]
@@ -9,10 +10,10 @@ Description=ConvoAI FastAPI backend
 After=network.target
 
 [Service]
-User=YOUR_USER
-Group=YOUR_USER
-WorkingDirectory=/home/YOUR_USER/convoai/backend
-ExecStart=/home/YOUR_USER/convoai/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+User=root
+Group=root
+WorkingDirectory=/root/convoai/backend
+ExecStart=/root/convoai/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
 Restart=always
 RestartSec=3
 
