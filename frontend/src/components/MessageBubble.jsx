@@ -31,19 +31,16 @@ export default function MessageBubble({
   // — except your own, since you already know your own profile.
   const nameClickable = !isAI && !isOwn
 
-  function SenderName() {
-    if (!nameClickable) {
-      return <div className="bubble-sender">{message.sender_name}</div>
-    }
-    return (
-      <div
-        className="bubble-sender bubble-sender-clickable"
-        onClick={(e) => { e.stopPropagation(); onViewProfile(message.sender_id) }}
-      >
-        {message.sender_name}
-      </div>
-    )
-  }
+  const senderNameEl = nameClickable ? (
+    <div
+      className="bubble-sender bubble-sender-clickable"
+      onClick={(e) => { e.stopPropagation(); onViewProfile(message.sender_id) }}
+    >
+      {message.sender_name}
+    </div>
+  ) : (
+    <div className="bubble-sender">{message.sender_name}</div>
+  )
 
   function onPointerDown(e) {
     if (isAI || message.deleted) return
@@ -97,7 +94,7 @@ export default function MessageBubble({
     return (
       <div className={`bubble-row ${side}`}>
         <div className="bubble bubble-poll">
-          <SenderName />
+          {senderNameEl}
           <div className="poll-question">📊 {poll.question}</div>
           <div className="poll-options">
             {poll.options.map((opt) => {
@@ -212,7 +209,7 @@ export default function MessageBubble({
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
       >
-        <SenderName />
+        {senderNameEl}
         <div className="bubble-content">{message.content}</div>
 
         <div className="bubble-footer">
